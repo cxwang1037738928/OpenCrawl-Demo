@@ -21,6 +21,7 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { requireAuth } from './middleware/auth.js';
+import { prisma, connectionDiagnostics } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { chatsRouter } from './routes/chats.js';
 import { collectionsRouter } from './routes/collections.js';
@@ -37,6 +38,26 @@ app.use(cors());
 app.use(express.json());
 
 // ── Routers ───────────────────────────────────────────────────────────────────
+
+/**
+ * TEMPORARY, unauthenticated: reports which database endpoint and Prisma engine
+ * this process is using, plus a live SELECT 1. Unauthenticated because login is
+ * the thing that is broken — an authenticated probe could not be reached.
+ *
+ * Deliberately carries no credentials: host, port and query flags only, which
+ * grant nothing on their own (the pooler still requires the password). Remove
+ * once the connection is healthy.
+ */
+app.get('/api/health', async (req, res) => {
+  const diagnostics = connectionDiagnostics();
+  let database = 'ok';
+  try {
+    await prisma.$queryRawUnsafe('SELECT 1');
+  } catch (err) {
+    database = err.message.split('\n').filter(Boolean).slice(-1)[0] ?? String(err);
+  }
+  res.json({ ...diagnostics, database, commit: process.env.RENDER_GIT_COMMIT ?? null });
+});
 
 app.use('/api/auth', authRouter);
 app.use('/api/collections', requireAuth, collectionsRouter);

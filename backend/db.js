@@ -20,7 +20,7 @@ import { PrismaClient } from '@prisma/client';
  * the engine, and on a host you cannot shell into that leaves nothing to reason
  * from. Credentials are never printed — host, port and query flags only.
  */
-function logConnectionDiagnostics(url) {
+export function connectionDiagnostics(url = connectionUrl() ?? process.env.DATABASE_URL ?? '') {
   const engineDir = path.join(
     path.dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.prisma', 'client');
   let engines = [];
@@ -29,16 +29,28 @@ function logConnectionDiagnostics(url) {
   } catch { /* not generated here (e.g. a different node_modules root) */ }
 
   let endpoint = '(unset)';
-  let flags = '';
+  let flags = '(none)';
   try {
     const parsed = new URL(url);
     endpoint = `${parsed.hostname}:${parsed.port || 5432}${parsed.pathname}`;
     flags = parsed.search || '(none)';
   } catch { /* malformed or absent — that itself is the finding */ }
 
-  console.log(`[db] endpoint ${endpoint}  query ${flags}`);
-  console.log(`[db] node openssl ${process.versions.openssl}  platform ${process.platform}/${process.arch}`);
-  console.log(`[db] prisma engines present: ${engines.length ? engines.join(', ') : '(none found)'}`);
+  return {
+    endpoint,                     // host:port/db — no credentials
+    flags,                        // query string, to confirm sslmode/pgbouncer
+    nodeOpenssl: process.versions.openssl,
+    platform: `${process.platform}/${process.arch}`,
+    engines,                      // which libquery_engine files exist on disk
+    databaseUrlSet: Boolean((process.env.DATABASE_URL || '').trim()),
+  };
+}
+
+function logConnectionDiagnostics(url) {
+  const d = connectionDiagnostics(url);
+  console.log(`[db] endpoint ${d.endpoint}  query ${d.flags}`);
+  console.log(`[db] node openssl ${d.nodeOpenssl}  platform ${d.platform}`);
+  console.log(`[db] prisma engines present: ${d.engines.length ? d.engines.join(', ') : '(none found)'}`);
 }
 
 function connectionUrl() {
