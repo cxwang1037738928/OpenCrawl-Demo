@@ -89,6 +89,53 @@ export async function signedPdfUrl(doc) {
   return `${SUPABASE_URL}/storage/v1${signedURL ?? signedUrl}`;
 }
 
+/** List every object under a prefix, paging past the API's per-call cap. */
+export async function listObjects(prefix = '') {
+  const out = [];
+  for (let offset = 0; ; offset += 100) {
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, limit: 100, offset,
+                             sortBy: { column: 'name', order: 'asc' } }),
+    });
+    if (!response.ok) throw new Error(`list "${prefix}" failed (HTTP ${response.status})`);
+    const page = await response.json();
+    if (!Array.isArray(page) || page.length === 0) return out;
+    out.push(...page);
+    if (page.length < 100) return out;
+  }
+}
+
+/**
+ * Delete every object under collection folders NOT in `keepCollectionIds`.
+ * Whole folders only, keyed on the numeric collection id, so a half-uploaded
+ * demo collection is never touched. Scripts-only, not the request path.
+ */
+export async function pruneForeignFolders(keepCollectionIds, { dryRun = false } = {}) {
+  const keep = new Set(keepCollectionIds.map(Number));
+  const folders = (await listObjects('')).filter((entry) => !entry.id);  // folders lack an id
+  const doomed = [];
+  for (const folder of folders) {
+    if (keep.has(Number(folder.name))) continue;
+    for (const file of await listObjects(`${folder.name}/`)) {
+      doomed.push(`${folder.name}/${file.name}`);
+    }
+  }
+  if (dryRun || doomed.length === 0) return doomed;
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefixes: doomed }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(`prune failed (HTTP ${response.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+  }
+  return doomed;
+}
+
 /** Upload one PDF. Used only by scripts/upload_pdfs.mjs, not the request path. */
 export async function uploadPdf(key, bytes, { upsert = true } = {}) {
   const response = await fetch(
