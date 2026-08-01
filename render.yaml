@@ -14,7 +14,7 @@ services:
   - type: web
     name: opencrawl-demo
     runtime: node
-    plan: pro                     # 2 GB — see the sizing note above
+    plan: standard                # 2 GB — see the sizing note above (pro is 4 GB)
     region: ohio                # MUST match the Supabase project's region
     branch: main
     # fetch:model AFTER npm install: it copies onnxruntime + pdf.js wasm out of
