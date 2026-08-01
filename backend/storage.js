@@ -26,13 +26,28 @@
 import 'dotenv/config';
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
-const SERVICE_KEY  = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-const BUCKET       = (process.env.SUPABASE_PDF_BUCKET || 'pdfs').trim();
+// Supabase's current key scheme is publishable/secret (sb_secret_…); the older
+// anon/service_role JWTs still work but are deprecated. Accept either name so a
+// rotation to the new scheme is an env change, not a code change. Both grant
+// full access — this key is backend-only and must never reach the bundle.
+const SECRET_KEY = (process.env.SUPABASE_SECRET_KEY
+  || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const BUCKET     = (process.env.SUPABASE_PDF_BUCKET || 'pdfs').trim();
 // Long enough for a reader to page through a document, short enough that a
 // leaked URL is not a permanent handle on the corpus.
 const SIGNED_URL_TTL = parseInt(process.env.SUPABASE_SIGNED_URL_TTL || '3600', 10);
 
-export const storageConfigured = () => Boolean(SUPABASE_URL && SERVICE_KEY);
+export const storageConfigured = () => Boolean(SUPABASE_URL && SECRET_KEY);
+
+/**
+ * Both headers on purpose. The legacy service_role JWT is accepted on
+ * Authorization alone, but the newer sb_secret_… keys are validated against
+ * `apikey` as well, and sending both is valid for either scheme.
+ */
+const authHeaders = () => ({
+  apikey: SECRET_KEY,
+  Authorization: `Bearer ${SECRET_KEY}`,
+});
 
 /** Last path segment, for paths written with either separator. */
 export const basename = (filePath) => String(filePath).split(/[\\/]/).pop();
@@ -51,19 +66,22 @@ export async function signedPdfUrl(doc) {
     `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${encodeURI(key)}`,
     {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ expiresIn: SIGNED_URL_TTL }),
     },
   );
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    const err = new Error(
-      `Supabase Storage could not sign "${key}" (HTTP ${response.status})` +
-      `${detail ? `: ${detail.slice(0, 200)}` : ''}`);
-    err.status = response.status === 404 ? 404 : 502;
+    // A missing object comes back as HTTP 400 with {"statusCode":"404",
+    // "error":"not_found"} in the body, so the transport status alone would
+    // report "storage is broken" for what is really "that PDF isn't uploaded".
+    let missing = response.status === 404;
+    try { missing ||= String(JSON.parse(detail).statusCode) === '404'; } catch { /* not JSON */ }
+    const err = new Error(missing
+      ? `PDF not in storage: "${key}"`
+      : `Supabase Storage could not sign "${key}" (HTTP ${response.status})` +
+        `${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+    err.status = missing ? 404 : 502;
     throw err;
   }
   // The API returns a path relative to /storage/v1, not an absolute URL.
@@ -78,7 +96,7 @@ export async function uploadPdf(key, bytes, { upsert = true } = {}) {
     {
       method: upsert ? 'PUT' : 'POST',
       headers: {
-        Authorization: `Bearer ${SERVICE_KEY}`,
+        ...authHeaders(),
         'Content-Type': 'application/pdf',
         'x-upsert': String(upsert),
       },

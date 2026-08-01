@@ -15,7 +15,7 @@ services:
     name: opencrawl-demo
     runtime: node
     plan: pro                     # 2 GB — see the sizing note above
-    region: oregon                # MUST match the Supabase project's region
+    region: ohio                # MUST match the Supabase project's region
     branch: main
     # fetch:model AFTER npm install: it copies onnxruntime + pdf.js wasm out of
     # node_modules as well as downloading the embedding model from HF. Without
@@ -47,7 +47,9 @@ services:
         generateValue: true
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      # Supabase's current scheme: the "secret" key (sb_secret_…). The older
+      # SUPABASE_SERVICE_ROLE_KEY is still read as a fallback by storage.js.
+      - key: SUPABASE_SECRET_KEY
         sync: false
       - key: SUPABASE_PDF_BUCKET
         value: pdfs

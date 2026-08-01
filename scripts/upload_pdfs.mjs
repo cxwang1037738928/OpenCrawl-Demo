@@ -12,7 +12,10 @@
  * Verifies every Document row has a matching file before uploading anything, so
  * a partial corpus fails loudly here rather than as 404s in the viewer.
  *
- * Run: node scripts/upload_pdfs.mjs [--dry-run]
+ * Run: node scripts/upload_pdfs.mjs [--dry-run] [--limit N]
+ *
+ * --limit N uploads only the first N — use it to prove one file lands in the
+ * bucket before committing to the full 688 MB.
  */
 
 import 'dotenv/config';
@@ -25,6 +28,8 @@ import { storageConfigured, uploadPdf, basename } from '../backend/storage.js';
 const ROOT        = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const UPLOADS_DIR = path.join(ROOT, 'uploads');
 const DRY_RUN     = process.argv.includes('--dry-run');
+const LIMIT_ARG   = process.argv.indexOf('--limit');
+const LIMIT       = LIMIT_ARG === -1 ? Infinity : parseInt(process.argv[LIMIT_ARG + 1], 10);
 
 if (!storageConfigured()) {
   console.error('[upload] SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
@@ -58,13 +63,16 @@ if (missing.length) {
   process.exit(1);
 }
 
-const total = planned.reduce((sum, item) => sum + item.size, 0);
-console.log(`[upload] ${planned.length} PDFs, ${mb(total)} total` +
+// Pre-flight validated the whole corpus above; --limit only caps what is sent,
+// so a partial run is still proof the whole set is present locally.
+const batch = Number.isFinite(LIMIT) ? planned.slice(0, LIMIT) : planned;
+const total = batch.reduce((sum, item) => sum + item.size, 0);
+console.log(`[upload] ${batch.length} of ${planned.length} PDFs, ${mb(total)}` +
   `${DRY_RUN ? '  (dry run — nothing will be sent)' : ''}`);
 
 let done = 0;
 let sent = 0;
-for (const { key, local, size } of planned) {
+for (const { key, local, size } of batch) {
   if (!DRY_RUN) {
     const bytes = await fs.readFile(local);       // one at a time: 4.6 MB peaks, not 688 MB
     await uploadPdf(key, bytes);
@@ -72,7 +80,7 @@ for (const { key, local, size } of planned) {
   done++;
   sent += size;
   const pct = ((sent / total) * 100).toFixed(0);
-  process.stdout.write(`\r[upload] ${String(done).padStart(4)}/${planned.length}  ` +
+  process.stdout.write(`\r[upload] ${String(done).padStart(4)}/${batch.length}  ` +
     `${mb(sent)} / ${mb(total)}  (${pct}%)   ${key.slice(0, 48).padEnd(48)}`);
 }
 process.stdout.write('\n');
