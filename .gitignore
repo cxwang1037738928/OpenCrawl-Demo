@@ -1,0 +1,23 @@
+node_modules/
+uploads/
+.env
+# Transformers.js caches downloaded model weights
+.cache/
+
+# Demo corpus assets — restored alongside the database dump, not source
+/documents/*
+/tests/test-input
+/tests/test-output
+/tests/test-input-synthesis/
+
+# Frontend build output
+frontend/dist/
+
+# Vendored browser embedding model + pdf.js wasm (npm run fetch:model)
+models/
+
+# Leftovers from the removed extraction pipeline — safe to delete outright
+.venv/
+.venv-abbrev/
+__pycache__/
+data/

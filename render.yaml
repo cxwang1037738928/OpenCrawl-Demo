@@ -1,0 +1,67 @@
+# Render Blueprint — one web service serving both the API and the built SPA.
+#
+# server.js serves frontend/dist statically, so the frontend is same-origin with
+# the API: no second service, no CORS, no separate domain.
+#
+# Sizing (measured on the 192-document collection): peak RSS 865 MB during the
+# first query on that corpus, ~571 MB steady with two collections cached and the
+# citation-grounding model resident. 512 MB cannot run it; 2 GB has headroom.
+#
+# Secrets are NOT in this file — set them in the Render dashboard (sync: false
+# means "prompt me, don't store it in git").
+
+services:
+  - type: web
+    name: opencrawl-demo
+    runtime: node
+    plan: pro                     # 2 GB — see the sizing note above
+    region: oregon                # MUST match the Supabase project's region
+    branch: main
+    # fetch:model AFTER npm install: it copies onnxruntime + pdf.js wasm out of
+    # node_modules as well as downloading the embedding model from HF. Without
+    # it /models 404s, the browser silently falls back to huggingface.co, and
+    # pdf.js loses its wasm decoders so scanned pages render blank.
+    buildCommand: >-
+      npm install &&
+      npx prisma generate &&
+      npm run install:web &&
+      npm run build:web &&
+      npm run fetch:model
+    startCommand: node backend/server.js
+    healthCheckPath: /api/auth/me
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # V8 sizes its heap from detected system memory and may not see the
+      # container limit; cap it so GC runs before the OOM killer does.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=1536
+      # Supabase transaction pooler (port 6543). pgbouncer=true is required or
+      # Prisma's prepared statements break under transaction pooling.
+      - key: DATABASE_URL
+        sync: false
+      # Supabase direct connection (port 5432) — migrations only.
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_PDF_BUCKET
+        value: pdfs
+      # Must be a HOSTED model: there is no Ollama here, and 2 GB could not run
+      # a local one anyway. Gemini or the Azure deployment name.
+      - key: REASONING_MODEL
+        value: gemini/gemini-3.1-flash-lite
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CLIENT_EMBEDDING_MODEL
+        value: Xenova/all-MiniLM-L12-v2
+      - key: SAPPHIRE_EMBEDDING_MODEL
+        value: Xenova/all-MiniLM-L12-v2
+      - key: DEMO_EMAIL
+        value: demo@gmail.com
+      - key: DEMO_PASSWORD
+        sync: false

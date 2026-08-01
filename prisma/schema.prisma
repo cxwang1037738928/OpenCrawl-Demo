@@ -1,0 +1,114 @@
+// OpenCrawl schema — collections own the corpus (documents → chunks +
+// categorize/graph artifacts); chats belong to a collection and hold the
+// conversation. Every collection is owned by a user (login is required).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// DATABASE_URL is the pooled connection (Supabase pgbouncer, port 6543) that
+// the running app uses; DIRECT_URL is the unpooled one (port 5432) that
+// migrations need, because pgbouncer's transaction mode cannot hold the
+// session-level locks and prepared statements a migration issues.
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Crawler {
+  sapphire
+  ruby
+  topaz
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String // bcrypt hash
+  isAdmin     Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  collections Collection[]
+}
+
+model Collection {
+  id              Int        @id @default(autoincrement())
+  name            String
+  color           String // orb hex, auto-assigned from the series palette
+  crawler         Crawler    @default(sapphire)
+  categories      Json? // categorize output: {threshold, generatedAt, categories}
+  docVectors      Json? // title+abstract vectors backing the embedding map
+  embeddingsMeta  Json? // {model, dimensions, created, updated, totalDocs}
+  // kg_graph.py (kg-gen) output: {createdAt, model, sourceDocIds, entities,
+  // edges, relations, chunksProcessed, calls, callsFailed, callsCompleted,
+  // complete}. Written incrementally: a partial (complete=false) graph is
+  // saved here after each kg-gen call, not only when the stage finishes.
+  knowledgeGraph     Json?
+  // kg-gen's standalone interactive page, served to the graph tab's iframe
+  knowledgeGraphHtml String?
+  corpusUpdatedAt DateTime? // bumped on pipeline ingest — retrieval cache key
+  userId          Int
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents       Document[]
+  chunks          Chunk[]
+  chats           Chat[]
+  createdAt       DateTime   @default(now())
+
+  @@index([userId])
+}
+
+model Chat {
+  id           Int        @id @default(autoincrement())
+  title        String     @default("New chat")
+  conversation Json       @default("[]") // [{role, content, sources?}]
+  collectionId Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Document {
+  id           String     @id @default(cuid())
+  docId        String // content-hash id used in URLs and citations
+  collectionId Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  filename     String
+  filePath     String // uploaded PDF on disk (uploads/<collectionId>/)
+  sha256       String
+  status       String     @default("pending") // pending|processing|completed|failed
+  title        String?
+  authors      Json       @default("[]")
+  pageCount    Int?
+  docling      Json? // extract.py output: text, sections, references, metadata
+  extractedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  chunks       Chunk[]
+
+  @@unique([collectionId, docId])
+  @@unique([collectionId, sha256])
+}
+
+model Chunk {
+  id           String     @id @default(cuid())
+  chunkId      String // "<docId>_<index>" used by citations
+  collectionId Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  documentId   String
+  document     Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  docId        String // denormalized for retrieval responses
+  filename     String // denormalized for retrieval responses
+  chunkIndex   Int
+  text         String
+  heading      String?
+  chunkType    String?
+  sectionIndex Int?
+  pages        Json? // 1-based [first, last] page span in the source PDF
+  prefixLen    Int        @default(0)
+  category     String? // cluster keywords from the categorize stage
+  embedding    Json // float[] (MiniLM, L2-normalized)
+  ingestedAt   DateTime   @default(now())
+
+  @@unique([collectionId, chunkId])
+  @@index([collectionId])
+  @@index([documentId])
+}

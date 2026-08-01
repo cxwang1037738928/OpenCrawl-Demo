@@ -1,0 +1,1093 @@
+/* OpenCrawl — Stellarium-inspired theme. One visual world: the night sky
+   (near-black indigo ground, cool slate ink). The ACCENT is the crawler's
+   gem — sapphire blue by default; data-crawler on <html> re-tints the accent
+   and the deep-field glow for ruby (crimson) and topaz (amber) without
+   touching the ground tokens, so the sky stays the sky. */
+
+:root {
+  --bg:            #03060f;
+  --bg-glow:       #0a1430;
+  --surface:       #05091a;
+  --elevated:      #0c1428;
+  --border:        #141d38;
+  --border-strong: #25304f;
+  --ink:           #dce6f5;
+  --ink-secondary: #93a4c0;
+  --ink-muted:     #5d6c88;
+  --accent:        #58b0e8;
+  --accent-hover:  #7cc4f0;
+  --accent-soft:   rgba(88, 176, 232, 0.14);
+  --danger:        #e66767;
+  --ok:            #3fbf9a;
+  --shadow:        0 1px 3px rgba(0, 0, 0, 0.5), 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-crawler='ruby'] {
+  --accent:       #e8586b;
+  --accent-hover: #f0808f;
+  --accent-soft:  rgba(232, 88, 107, 0.14);
+  --bg-glow:      #2b0a16;
+}
+
+:root[data-crawler='topaz'] {
+  --accent:       #e8b058;
+  --accent-hover: #f0c684;
+  --accent-soft:  rgba(232, 176, 88, 0.14);
+  --bg-glow:      #2a1c0a;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Deep-field glow behind the viz — the "looking into the sky" depth cue. */
+.main {
+  background:
+    radial-gradient(ellipse 70% 60% at 45% 42%, var(--bg-glow) 0%, transparent 70%),
+    var(--bg);
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+
+.app { display: flex; height: 100%; }
+
+.main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sidebar sits on the LEFT; the main stage fills the rest. */
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header { padding: 20px 20px 14px; }
+
+.wordmark {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--ink);
+}
+
+.tab-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px 12px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tab-btn:hover { background: var(--accent-soft); color: var(--ink); }
+
+.tab-btn.active { background: var(--accent-soft); color: var(--accent); }
+
+.tab-btn svg { flex-shrink: 0; }
+
+.sidebar-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 20px 4px;
+}
+
+.sidebar-controls {
+  flex: 1;
+  padding: 12px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sidebar-footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
+.control-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.control-value {
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='range'] {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--border-strong);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 8px var(--accent-soft);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.seg button {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.seg button.active { background: var(--accent); color: var(--bg); }
+
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-row input { accent-color: var(--accent); }
+
+/* ── Legend ──────────────────────────────────────────────────────────────── */
+
+.legend { display: flex; flex-direction: column; gap: 6px; }
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  min-width: 0;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.legend-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.legend-count {
+  margin-left: auto;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ── Viz chrome ──────────────────────────────────────────────────────────── */
+
+.viz-fill { position: absolute; inset: 0; }
+
+.viz-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--elevated);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  max-width: 320px;
+  z-index: 10;
+  transform: translate(12px, 12px);
+}
+
+.viz-tooltip .sub { color: var(--ink-muted); font-size: 11px; }
+
+.viz-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.viz-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink-muted);
+  text-align: center;
+  padding: 0 40px;
+}
+
+.viz-empty h2 {
+  color: var(--ink-secondary);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* force-graph's built-in tooltip */
+.graph-tooltip {
+  font: 12.5px system-ui, sans-serif !important;
+  background: var(--elevated) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--bg);
+  transition: background 120ms ease;
+}
+
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.save-note { font-size: 12.5px; margin-left: 2px; }
+.save-note.ok { color: var(--ok); }
+.save-note.err { color: var(--danger); }
+
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink-secondary);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-btn:hover { color: var(--accent); border-color: var(--border-strong); }
+
+/* ── Crawler switcher (top right of the stage) ───────────────────────────── */
+
+.crawler-switch {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 20;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+}
+
+.crawler-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.crawler-btn:hover { color: var(--ink); background: var(--accent-soft); }
+
+.crawler-btn.active {
+  background: var(--accent-soft);
+  color: var(--ink);
+  outline: 1px solid var(--border-strong);
+}
+
+.crawler-btn svg { flex-shrink: 0; }
+
+/* ── Chat ────────────────────────────────────────────────────────────────── */
+
+.chat-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chat-scroll {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  padding: 64px 24px 12px;   /* clears the crawler switcher */
+}
+
+.chat-thread,
+.chat-hero {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.chat-hero {
+  margin-top: 18vh;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.chat-hero h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin: 0 0 10px;
+}
+
+.chat-hero p { margin: 0 auto; max-width: 46ch; line-height: 1.6; }
+
+.chat-thread { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+
+.msg {
+  border-radius: 12px;
+  padding: 10px 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;      /* user text / error strings are raw */
+  overflow-wrap: anywhere;
+}
+
+/* Assistant replies are rendered as markdown blocks, not raw text. */
+.msg-body { white-space: normal; display: flex; flex-direction: column; gap: 8px; }
+.msg-body > :first-child { margin-top: 0; }
+.msg-body > :last-child  { margin-bottom: 0; }
+.msg-body p { margin: 0; }
+
+.msg-body .md-h {
+  font-weight: 650;
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.msg-body ul, .msg-body ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.msg-body li { line-height: 1.5; }
+
+.msg-body blockquote {
+  margin: 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--ink-secondary);
+  font-style: italic;
+}
+
+.msg-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--elevated);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.msg-body strong { font-weight: 650; }
+
+.msg.user {
+  align-self: flex-end;
+  max-width: 78%;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.msg.assistant {
+  align-self: flex-start;
+  max-width: 92%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.msg.assistant.error {
+  border-left: 3px solid var(--danger);
+  color: var(--ink-secondary);
+}
+
+.msg-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.source-chip {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.source-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+/* Delete a Q/A pair — bottom-right of the reply, quiet until hovered. */
+.msg-actions { display: flex; justify-content: flex-end; margin-top: 8px; min-height: 20px; }
+
+.delete-pair {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 1px 6px;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.delete-pair:hover, .delete-pair:focus-visible {
+  opacity: 1;
+  color: var(--danger);
+  border-color: var(--border);
+  gap: 5px;
+}
+
+.delete-mark { font-size: 14px; line-height: 1; }
+
+/* The label is the "expand": zero-width until the button is hovered. */
+.delete-label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.15s ease;
+}
+
+.delete-pair:hover .delete-label, .delete-pair:focus-visible .delete-label { max-width: 120px; }
+
+.delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.delete-yes, .delete-no {
+  font: inherit;
+  font-size: 11.5px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+
+.delete-yes { color: var(--danger); }
+.delete-no  { color: var(--ink-muted); }
+.delete-yes:hover, .delete-no:hover { border-color: var(--border-strong); }
+
+/* Inline [n] citation markers in assistant replies */
+.citation-group { white-space: nowrap; }
+
+.citation-link {
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 5px;
+  margin: 0 1.5px;
+  vertical-align: 2px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.citation-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+/* [!] — a claim the retriever could not trace to any retrieved excerpt.
+   Sized and aligned like a citation pill so it reads as one of the family. */
+.citation-unsupported {
+  position: relative;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  background: rgba(230, 103, 103, 0.14);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 0 5px;
+  margin: 0 1.5px;
+  vertical-align: 2px;
+  line-height: 1.5;
+  cursor: help;
+}
+
+/* [G] — the claim used a knowledge-graph triple. Same shape as [!] so it reads
+   as one of the citation family, yellow rather than red: the fact has documents
+   behind it and is not suspected of being fabricated, it just cannot be checked
+   against excerpt text the way a [n] can. Non-clickable — a triple cites whole
+   documents, not a span to open. */
+.citation-graph {
+  position: relative;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #b8860b;
+  background: rgba(224, 176, 48, 0.16);
+  border: 1px solid #d4a017;
+  border-radius: 6px;
+  padding: 0 5px;
+  margin: 0 1.5px;
+  vertical-align: 2px;
+  line-height: 1.5;
+  cursor: help;
+}
+
+/* [n!] — flagged but clickable: opens the model's cited chunk, still warns. */
+/* Hover/focus tooltip explaining the flag. A real element, not title=, so it
+   shows instantly and reads at chat-bubble size. position:fixed + JS-set
+   left/top (positionTip in Chat.jsx): the chat scroller clips overflow, so a
+   marker near the right edge needs the tooltip clamped to the viewport rather
+   than centered on the marker. --arrow-left keeps the arrow on the marker. */
+.unsupported-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 235px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  /* the flag can sit inside .citation-group (white-space: nowrap); force
+     normal so the disclaimer wraps inside its box instead of spilling out */
+  white-space: normal;
+  color: var(--ink);
+  background: var(--elevated);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 40;
+}
+
+/* Arrow: border-colored wedge with the surface-colored wedge inset 1.5px.
+   Sits under the tooltip by default; .tip-below flips it above when the
+   tooltip is placed below the marker (no room above). */
+.unsupported-tip::before,
+.unsupported-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--arrow-left, 50%);
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--danger);
+}
+.unsupported-tip::after {
+  margin-top: -1.5px;
+  border-top-color: var(--elevated);
+}
+.unsupported-tip.tip-below::before,
+.unsupported-tip.tip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--danger);
+}
+.unsupported-tip.tip-below::after {
+  margin-top: 0;
+  margin-bottom: -1.5px;
+  border-bottom-color: var(--elevated);
+}
+
+/* Both marker types share the tooltip element, so both must reveal it — scoping
+   this to .citation-unsupported alone left [G] rendering an invisible tip. */
+.citation-unsupported:hover .unsupported-tip,
+.citation-unsupported:focus-visible .unsupported-tip,
+.citation-graph:hover .unsupported-tip,
+.citation-graph:focus-visible .unsupported-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unsupported-tip { transition: none; }
+}
+
+.chat-status {
+  align-self: flex-start;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  padding: 2px 4px;
+  animation: chat-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes chat-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+.composer {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 10px 24px 20px;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 42px;
+  max-height: 160px;
+  background: var(--elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.composer textarea:disabled { opacity: 0.55; }
+
+/* ── Documents tab: PDF viewer ──────────────────────────────────────────── */
+
+.pdf-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pdf-status {
+  position: absolute;
+  top: 64px;                 /* below the crawler switcher */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+
+.pdf-scroll {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  padding: 64px 24px 24px;   /* clears the crawler switcher */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pdf-page {
+  position: relative;
+  flex-shrink: 0;
+  max-width: 100%;
+  background: #f5f2ec;       /* paper placeholder while the canvas renders */
+  border-radius: 3px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-page img { display: block; max-width: 100%; border-radius: 3px; }
+
+.pdf-page-num { color: #9a938a; font-size: 13px; }
+
+.pdf-highlight {
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: multiply;  /* reads as marker ink on the white page */
+  border-radius: 2px;
+}
+
+/* Document list (sidebar portal) */
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Title/author filter above the list */
+.doc-search {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+}
+
+.doc-search::placeholder { color: var(--ink-muted); }
+/* No focus outline: the list scrolls, which clips it. The border marks focus. */
+.doc-search:focus-visible { outline: none; border-color: var(--border-strong); }
+
+.doc-item {
+  font: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.doc-item:hover { background: var(--elevated); }
+
+.doc-item.active {
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+
+.doc-item-title {
+  font-size: 12.5px;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.doc-item.active .doc-item-title { color: var(--accent); }
+
+.doc-item-authors {
+  font-size: 11px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-list-error { font-size: 12px; color: var(--ink-muted); padding: 4px 10px; }
+
+.doc-item-pending { color: var(--ink-muted); font-size: 11px; }
+
+/* ── Sidebar chat + collection lists ─────────────────────────────────────── */
+
+/* Colored orb marking which collection a chat/collection row belongs to. */
+.orb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.collection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-list-empty {
+  font-size: 12px;
+  color: var(--ink-muted);
+  padding: 4px 10px;
+  line-height: 1.4;
+}
+
+.chat-list {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 32vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.chat-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.chat-new {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--ink-secondary);
+  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chat-new:hover { color: var(--accent); border-color: var(--accent); }
+
+.chat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink-secondary);
+  font-size: 13px;
+}
+
+.chat-item:hover { background: var(--elevated); }
+.chat-item.active { background: var(--accent-soft); color: var(--accent); }
+
+.chat-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-delete {
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.chat-item:hover .chat-delete, .chat-delete:focus-visible { opacity: 1; }
+.chat-delete:hover { color: var(--danger, #e66767); background: var(--elevated); }
+
+/* ── Sidebar footer (user + logout) ──────────────────────────────────────── */
+
+.footer-user {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.footer-logout {
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.footer-logout:hover { color: var(--accent); background: var(--elevated); }
+
+/* ── Auth page (demo login) ──────────────────────────────────────────────── */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-sub { color: var(--ink-muted); font-size: 13px; margin: -6px 0 4px; }
+
+.auth-field { display: flex; flex-direction: column; gap: 5px; }
+
+.auth-field span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+}
+
+.auth-field input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.auth-field input:focus-visible { outline: none; border-color: var(--accent); }
+
+.auth-error { color: var(--danger, #e66767); font-size: 12.5px; }
+
+.auth-actions { display: flex; gap: 10px; margin-top: 4px; }
+.auth-actions .btn { flex: 1; }
+
+.btn-secondary {
+  background: var(--elevated);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { background: var(--accent-soft); }
+
+.auth-demo-hint {
+  font-size: 12.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: -4px 0 2px;
+  line-height: 1.45;
+}
+
+/* ── Pipeline run: navigation lock + overlay ─────────────────────────────── */
+
+/* Nav controls disabled while a run is in flight. */
+.tab-btn:disabled,
+.crawler-btn:disabled,
+.chat-new:disabled,
+.footer-logout:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
