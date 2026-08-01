@@ -4,6 +4,9 @@
   "description": "OpenCrawl demo — RAG chat over a pre-indexed corpus, with its embedding space and knowledge graph",
   "main": "backend/server.js",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch-path=backend backend/server.js",

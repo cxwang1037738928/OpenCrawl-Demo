@@ -21,10 +21,14 @@ services:
     # node_modules as well as downloading the embedding model from HF. Without
     # it /models 404s, the browser silently falls back to huggingface.co, and
     # pdf.js loses its wasm decoders so scanned pages render blank.
-    # --include=dev on BOTH installs: NODE_ENV=production (set below, for the
-    # runtime) makes npm omit devDependencies, and the build tools live there —
-    # vite and @vitejs/plugin-react in frontend, the prisma CLI at the root.
-    # Without it the build dies at "sh: 1: vite: not found".
+    # NOTE: Render stores the build command on the service when it is first
+    # created and does NOT re-read it from here on later pushes — a stale
+    # command in the dashboard wins. Editing this file alone is not enough;
+    # update Settings -> Build Command too, or re-sync the Blueprint.
+    #
+    # --include=dev because Render's install omits devDependencies. vite and
+    # @vitejs/plugin-react are also declared as regular dependencies in
+    # frontend/package.json so the build survives an install without the flag.
     #
     # fetch:model runs last on purpose: it copies onnxruntime + pdf.js wasm out
     # of frontend/node_modules, so the frontend install must precede it.
