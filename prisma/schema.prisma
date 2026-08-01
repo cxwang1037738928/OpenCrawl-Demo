@@ -12,8 +12,11 @@
 // on openssl 1.x, which is no longer supported", and Prisma had a 1.1.x engine
 // available to load. With one Linux target there is nothing to mis-select.
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
+  // driverAdapters lets db.js route the connection through node-postgres
+  // instead of the Rust engine's own TCP/TLS stack — see backend/db.js.
+  previewFeatures = ["driverAdapters"]
 }
 
 // DATABASE_URL is the pooled connection (Supabase pgbouncer, port 6543) that

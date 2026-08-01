@@ -1,18 +1,30 @@
 /**
  * db.js — shared PrismaClient singleton (one connection pool per process).
  *
- * Remote connections get sslmode=require added when they don't specify one.
- * Prisma's default is `prefer`, which negotiates TLS and then fails outright if
- * the handshake does not go its way rather than falling back — and Supabase's
- * pooler requires TLS regardless, so being explicit costs nothing and removes a
- * failure mode that only shows up in deployment. Localhost is left alone: the
- * dev Postgres container serves no TLS at all.
+ * Connections go through node-postgres via Prisma's driver adapter, NOT the
+ * Rust query engine's built-in TCP/TLS stack. Measured on Render: every TLS
+ * setting — require, no-verify, prefer, accept_invalid_certs, and even
+ * disable — failed identically with "Error opening a TLS connection: OpenSSL
+ * error". `disable` failing that way is the tell: the engine cannot do TLS in
+ * that image at all, because its debian-openssl-3.0.x build links the system
+ * OpenSSL and Render's is 3.5. No connection string can fix that.
+ *
+ * node-postgres uses Node's own OpenSSL (3.5.7 there), which works. The same
+ * code path runs locally against the dev container, so there is one behaviour
+ * to reason about rather than two.
+ *
+ * TLS is enabled for remote hosts with rejectUnauthorized:false — Supabase's
+ * pooler presents a certificate for *.supabase.com that will not verify against
+ * the pooler hostname, and the credential protecting this database is the
+ * password, not the certificate chain. Localhost gets no TLS: the dev container
+ * serves none.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
  * One line at boot describing what we are about to connect with. Exists because
@@ -54,15 +66,24 @@ function logConnectionDiagnostics(url) {
 }
 
 function connectionUrl() {
-  const url = (process.env.DATABASE_URL || '').trim();
-  if (!url) return undefined;                       // let Prisma raise its own error
-  if (/sslmode=/.test(url)) return url;             // caller has an opinion; respect it
-  if (/@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url)) return url;
-  return url.includes('?') ? `${url}&sslmode=require` : `${url}?sslmode=require`;
+  return (process.env.DATABASE_URL || '').trim() || undefined;
 }
+
+const isLocal = (url) => /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url || '');
 
 const url = connectionUrl();
 
-logConnectionDiagnostics(url ?? process.env.DATABASE_URL ?? '');
+logConnectionDiagnostics(url ?? '');
 
-export const prisma = new PrismaClient(url ? { datasourceUrl: url } : undefined);
+// pg parses sslmode from the connection string, but an explicit `ssl` option
+// wins and is unambiguous — the string carries pgbouncer=true for Prisma's
+// benefit and we do not want pg reinterpreting the rest of it.
+const adapter = new PrismaPg({
+  connectionString: url,
+  ssl: isLocal(url) ? false : { rejectUnauthorized: false },
+  // Transaction-mode pgbouncer hands out a different backend per transaction,
+  // so a large client-side pool buys nothing and just occupies pooler slots.
+  max: parseInt(process.env.DB_POOL_MAX || '5', 10),
+});
+
+export const prisma = new PrismaClient({ adapter });
