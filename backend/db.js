@@ -69,21 +69,41 @@ function connectionUrl() {
   return (process.env.DATABASE_URL || '').trim() || undefined;
 }
 
-const isLocal = (url) => /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url || '');
+const isLocal = (host) => ['localhost', '127.0.0.1', '::1'].includes(host);
+
+/**
+ * Discrete pg connection fields rather than a connectionString.
+ *
+ * Passing the URL through lets pg-connection-string reinterpret it, and it
+ * treats sslmode=require as an alias for verify-full — which silently overrode
+ * an explicit `ssl` option and failed with "self-signed certificate in
+ * certificate chain" against Supabase's pooler. Parsing here means the URL's
+ * sslmode / pgbouncer / connection_limit params (which exist for Prisma, not
+ * for pg) cannot affect the TLS decision.
+ *
+ * rejectUnauthorized:false because the pooler serves a certificate that does
+ * not chain to a public root. The credential guarding this database is the
+ * password; the connection is still encrypted, just not authenticated. To
+ * verify properly you would pin Supabase's CA here with `ca: <pem>`.
+ */
+function pgConfig(url) {
+  const parsed = new URL(url);
+  const host = parsed.hostname;
+  return {
+    host,
+    port: Number(parsed.port || 5432),
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.replace(/^\//, '') || 'postgres',
+    ssl: isLocal(host) ? false : { rejectUnauthorized: false },
+    // Transaction-mode pgbouncer hands out a different backend per transaction,
+    // so a large client-side pool buys nothing and just occupies pooler slots.
+    max: parseInt(process.env.DB_POOL_MAX || '5', 10),
+  };
+}
 
 const url = connectionUrl();
 
 logConnectionDiagnostics(url ?? '');
 
-// pg parses sslmode from the connection string, but an explicit `ssl` option
-// wins and is unambiguous — the string carries pgbouncer=true for Prisma's
-// benefit and we do not want pg reinterpreting the rest of it.
-const adapter = new PrismaPg({
-  connectionString: url,
-  ssl: isLocal(url) ? false : { rejectUnauthorized: false },
-  // Transaction-mode pgbouncer hands out a different backend per transaction,
-  // so a large client-side pool buys nothing and just occupies pooler slots.
-  max: parseInt(process.env.DB_POOL_MAX || '5', 10),
-});
-
-export const prisma = new PrismaClient({ adapter });
+export const prisma = new PrismaClient({ adapter: new PrismaPg(pgConfig(url)) });
