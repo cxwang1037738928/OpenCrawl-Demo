@@ -21,7 +21,6 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { requireAuth } from './middleware/auth.js';
-import { prisma, connectionDiagnostics } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { chatsRouter } from './routes/chats.js';
 import { collectionsRouter } from './routes/collections.js';
@@ -38,63 +37,6 @@ app.use(cors());
 app.use(express.json());
 
 // ── Routers ───────────────────────────────────────────────────────────────────
-
-/**
- * TEMPORARY, unauthenticated: reports which database endpoint and Prisma engine
- * this process is using, plus a live SELECT 1. Unauthenticated because login is
- * the thing that is broken — an authenticated probe could not be reached.
- *
- * Deliberately carries no credentials: host, port and query flags only, which
- * grant nothing on their own (the pooler still requires the password). Remove
- * once the connection is healthy.
- */
-app.get('/api/health', async (req, res) => {
-  const diagnostics = connectionDiagnostics();
-  let database = 'ok';
-  try {
-    await prisma.$queryRawUnsafe('SELECT 1');
-  } catch (err) {
-    database = err.message.split('\n').filter(Boolean).slice(-1)[0] ?? String(err);
-  }
-  res.json({ ...diagnostics, database, commit: process.env.RENDER_GIT_COMMIT ?? null });
-});
-
-/**
- * TEMPORARY: try the same database with several TLS settings and report which
- * connect. The engine, endpoint and sslmode are all confirmed correct yet the
- * handshake still fails, and the failure does not reproduce off-Render — so
- * measure it on Render rather than guess again. Each attempt gets its own
- * short-lived client with connection_limit=1 and is disconnected after.
- */
-app.get('/api/health/ssl', async (req, res) => {
-  const { PrismaClient } = await import('@prisma/client');
-  const base = (process.env.DATABASE_URL || '').trim().split('?')[0];
-  const variants = {
-    'pgbouncer only':      'pgbouncer=true&connection_limit=1',
-    'sslmode=require':     'pgbouncer=true&connection_limit=1&sslmode=require',
-    'sslmode=no-verify':   'pgbouncer=true&connection_limit=1&sslmode=no-verify',
-    'sslmode=prefer':      'pgbouncer=true&connection_limit=1&sslmode=prefer',
-    'sslmode=disable':     'pgbouncer=true&connection_limit=1&sslmode=disable',
-    'accept_invalid_certs':'pgbouncer=true&connection_limit=1&sslaccept=accept_invalid_certs',
-  };
-
-  const results = {};
-  for (const [label, query] of Object.entries(variants)) {
-    const client = new PrismaClient({ datasourceUrl: `${base}?${query}` });
-    try {
-      await Promise.race([
-        client.$queryRawUnsafe('SELECT 1'),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timed out after 15s')), 15000)),
-      ]);
-      results[label] = 'OK';
-    } catch (err) {
-      results[label] = (err.message.split('\n').filter(Boolean).slice(-1)[0] ?? String(err)).slice(0, 120);
-    } finally {
-      await client.$disconnect().catch(() => {});
-    }
-  }
-  res.json({ base: base.replace(/\/\/[^@]*@/, '//***@'), results });
-});
 
 app.use('/api/auth', authRouter);
 app.use('/api/collections', requireAuth, collectionsRouter);
