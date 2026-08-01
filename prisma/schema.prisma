@@ -2,8 +2,15 @@
 // categorize/graph artifacts); chats belong to a collection and hold the
 // conversation. Every collection is owned by a user (login is required).
 
+// binaryTargets is explicit because Prisma otherwise guesses the query
+// engine's OpenSSL flavour at generate time, and a wrong guess surfaces only at
+// runtime as "Error opening a TLS connection: OpenSSL error" on the first
+// query. Render's Node images are Debian/Ubuntu with OpenSSL 3.x; 1.1.x is
+// listed too so an image change cannot reintroduce the same failure. "native"
+// keeps local development working.
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 // DATABASE_URL is the pooled connection (Supabase pgbouncer, port 6543) that
