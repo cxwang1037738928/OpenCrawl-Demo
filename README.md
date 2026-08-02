@@ -1,2 +1,2 @@
 # OpenCrawl-Demo
-A demo website for OpenCrawl that without the ETL pipeline, RAG, or KG generation steps.
+A demo website for OpenCrawl that excludes the ETL pipeline, RAG, and KG generation steps.
