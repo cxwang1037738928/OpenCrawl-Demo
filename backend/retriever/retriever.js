@@ -431,10 +431,13 @@ async function completeViaHosted({ label, client, model, fold, reasoningEffort,
  * @returns {Promise<{reply: string, model: string, quotesByChunk: string[][]}>}
  *          quotesByChunk[i] = verbatim quotes in the reply grounded by chunks[i]
  */
-export async function answer(messages, chunks, facts = []) {
-  const model = (process.env.REASONING_MODEL || '').trim();
+export async function answer(messages, chunks, facts = [], { model: requested } = {}) {
+  // The caller may name a model (the chat picker); it has already been checked
+  // against the allowlist in chat_models.js, because the id selects the
+  // provider — see chatProvider below.
+  const model = (requested || process.env.REASONING_MODEL || '').trim();
   if (!model) {
-    const err = new Error('REASONING_MODEL is not set in .env — chat cannot be answered');
+    const err = new Error('REASONING_MODEL is not set — chat cannot be answered');
     err.status = 503;
     throw err;
   }

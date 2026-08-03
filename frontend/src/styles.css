@@ -754,6 +754,31 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   padding: 10px 24px 20px;
 }
 
+/* Answering-model picker. Sits between the textarea and Send, sized to its
+   content so it never crowds the input; max-width keeps a long model name from
+   pushing Send off the row. */
+.model-select {
+  flex: 0 0 auto;
+  max-width: 190px;
+  height: 42px;
+  background: var(--elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 0 10px;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.model-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.model-select:disabled { opacity: 0.5; cursor: default; }
+
 .composer textarea {
   flex: 1;
   resize: none;

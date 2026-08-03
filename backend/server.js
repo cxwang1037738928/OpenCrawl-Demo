@@ -24,6 +24,7 @@ import { requireAuth } from './middleware/auth.js';
 import { authRouter } from './routes/auth.js';
 import { chatsRouter } from './routes/chats.js';
 import { collectionsRouter } from './routes/collections.js';
+import { chatModels, defaultChatModel } from './chat_models.js';
 
 const app  = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -41,6 +42,12 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/collections', requireAuth, collectionsRouter);
 app.use('/api/chats', requireAuth, chatsRouter);
+
+// The models the chat picker may offer. Its own mount rather than a path under
+// /api/chats, where it would be swallowed by the /:chatId parameter.
+app.get('/api/models', requireAuth, (req, res) => {
+  res.json({ models: chatModels(), default: defaultChatModel() });
+});
 
 // ── Browser embedding model (npm run fetch:model) ────────────────────────────
 // Chat.jsx embeds queries in-browser with the cache off, so it re-fetches the

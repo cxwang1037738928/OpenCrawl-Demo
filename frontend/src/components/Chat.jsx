@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { postChat, getChat, updateChat } from '../api.js';
+import { postChat, getChat, updateChat, getChatModels } from '../api.js';
 import {
   embedQuery, SEGMENT_RE, markerCitingSentences, citeInline, inlineMd,
   citedMarkerNumbers, toConversation,
@@ -167,14 +167,38 @@ function DeletePair({ confirming, onAsk, onConfirm, onCancel }) {
   );
 }
 
+const MODEL_KEY = 'opencrawl_chat_model';
+
 export default function Chat({ chatId, active, onCitation, onFirstMessage }) {
   const [messages, setMessages] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState(null);   // busy string | null
   const [confirmingIdx, setConfirmingIdx] = useState(null);   // reply awaiting delete confirmation
+  // The answering model is picked per visitor and sent with each question —
+  // every visitor shares the demo account, so a server-side setting would let
+  // one of them switch models underneath another mid-conversation. localStorage
+  // keeps the choice across reloads without it becoming shared state.
+  const [models, setModels] = useState([]);
+  const [model, setModel] = useState(() => localStorage.getItem(MODEL_KEY) || '');
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    getChatModels()
+      .then(({ models: available, default: fallback }) => {
+        setModels(available);
+        // Drop a stored choice the server no longer offers, so a removed model
+        // cannot silently 400 every question.
+        setModel((current) =>
+          (available.some((m) => m.id === current) ? current : fallback) || '');
+      })
+      .catch((err) => console.warn('[chat] could not load models:', err.message));
+  }, []);
+
+  useEffect(() => {
+    if (model) localStorage.setItem(MODEL_KEY, model);
+  }, [model]);
 
   // Restore the persisted conversation. Replies regain `query` as {text} from
   // the question above them (its embedding was never stored — the viewer
@@ -230,9 +254,10 @@ export default function Chat({ chatId, active, onCitation, onFirstMessage }) {
       const queryEmbedding = await embedQuery(question, setStatus);
       setStatus('retrieving + reasoning…');
       // The server holds the history — only the new question travels.
-      const { reply, sources, model } = await postChat(chatId, {
+      const { reply, sources, model: answeredBy } = await postChat(chatId, {
         content: question,
         queryEmbedding,
+        ...(model ? { model } : {}),
       });
       // The first exchange retitles the chat server-side; mirror it in the list.
       if (isFirstMessage) onFirstMessage?.(chatId, question.slice(0, 60));
@@ -240,7 +265,8 @@ export default function Chat({ chatId, active, onCitation, onFirstMessage }) {
       // viewer, which scores the chunk's sentences against it to decide
       // what to highlight.
       const query = { text: question, embedding: queryEmbedding };
-      setMessages((thread) => [...thread, { role: 'assistant', content: reply, sources, model, query }]);
+      setMessages((thread) =>
+        [...thread, { role: 'assistant', content: reply, sources, model: answeredBy, query }]);
     } catch (err) {
       setMessages((thread) => [...thread, { role: 'assistant', error: err.message }]);
     } finally {
@@ -321,6 +347,22 @@ export default function Chat({ chatId, active, onCitation, onFirstMessage }) {
           onKeyDown={onKeyDown}
           disabled={!!status}
         />
+        {/* Hidden when there is only one model — a picker with no choice is
+            just clutter. */}
+        {models.length > 1 && (
+          <select
+            className="model-select"
+            value={model}
+            onChange={(event) => setModel(event.target.value)}
+            disabled={!!status}
+            aria-label="Answering model"
+            title="Which model answers — applies to your next question only"
+          >
+            {models.map((option) => (
+              <option key={option.id} value={option.id}>{option.name}</option>
+            ))}
+          </select>
+        )}
         <button className="btn" onClick={send} disabled={!!status || !input.trim()}>
           Send
         </button>

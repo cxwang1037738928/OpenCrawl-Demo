@@ -98,4 +98,7 @@ export const getChunk        = (collectionId, chunkId) =>
 
 // ── Chat (RAG) ───────────────────────────────────────────────────────────────
 
+/** Models this deployment can answer with, plus the one used when none is sent. */
+export const getChatModels = () => request('/api/models');
+
 export const postChat = (chatId, payload) => postJson(`/api/chats/${chatId}/chat`, payload);

@@ -21,6 +21,7 @@
 
 import { Router } from 'express';
 import { retrieve, retrieveFacts, answer } from '../retriever/retriever.js';
+import { isAllowedChatModel, defaultChatModel } from '../chat_models.js';
 import { prisma } from '../db.js';
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -28,7 +29,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 export const chatRouter = Router();
 
 chatRouter.post('/', wrap(async (req, res) => {
-  const { content, queryEmbedding } = req.body ?? {};
+  const { content, queryEmbedding, model: requestedModel } = req.body ?? {};
 
   if (typeof content !== 'string' || !content.trim()) {
     return res.status(400).json({ error: '"content" must be a non-empty string' });
@@ -37,6 +38,15 @@ chatRouter.post('/', wrap(async (req, res) => {
       || queryEmbedding.some((component) => typeof component !== 'number')) {
     return res.status(400).json({ error: '"queryEmbedding" must be a number array (computed in the browser)' });
   }
+  // Checked against the allowlist, not merely sanitised: the id is what selects
+  // the provider (chatProvider in retriever.js), so an arbitrary value from the
+  // browser would choose where this request is sent.
+  if (requestedModel !== undefined && !isAllowedChatModel(requestedModel)) {
+    return res.status(400).json({ error: `Model "${requestedModel}" is not available` });
+  }
+  // Per request, deliberately: every visitor shares the demo account, so a
+  // stored global setting would let one of them switch models underneath another.
+  const chatModel = requestedModel ?? defaultChatModel();
 
   // LLM history = stored conversation (roles + text only) + the new question.
   const conversation = Array.isArray(req.chat.conversation) ? req.chat.conversation : [];
@@ -49,7 +59,7 @@ chatRouter.post('/', wrap(async (req, res) => {
   // Graph facts are additive: chunk retrieval is untouched, and a collection
   // with no graph (or a question naming no known entity) answers exactly as before.
   const { facts } = await retrieveFacts(req.chat.collection, content);
-  const { reply, model, quotesByChunk } = await answer(messages, chunks, facts);
+  const { reply, model, quotesByChunk } = await answer(messages, chunks, facts, { model: chatModel });
 
   // Full text + embedding stay server-side (text is large; embedding is a
   // grounding artifact the browser has no use for).
